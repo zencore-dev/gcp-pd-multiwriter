@@ -47,7 +47,7 @@ resource "google_compute_router_nat" "nat" {
 
 resource "google_compute_firewall" "allow_internal" {
   name          = "allow-internal"
-  network       = "vpc"
+  network       = google_compute_network.main.name
   direction     = "INGRESS"
   priority      = 1000
   source_ranges = ["10.0.0.0/16"]
@@ -63,13 +63,11 @@ resource "google_compute_firewall" "allow_internal" {
   allow {
     protocol = "udp"
   }
-
-  depends_on = [google_project_service.compute]
 }
 
 resource "google_compute_firewall" "allow_iap" {
   name          = "allow-iap"
-  network       = "vpc"
+  network       = google_compute_network.main.name
   direction     = "INGRESS"
   priority      = 1000
   source_ranges = ["35.235.240.0/20"]
@@ -78,7 +76,6 @@ resource "google_compute_firewall" "allow_iap" {
     protocol = "tcp"
     ports    = ["22"]
   }
-  depends_on = [google_project_service.compute]
 }
 
 resource "google_compute_disk" "shared" {
