@@ -1,3 +1,7 @@
+resource "google_project_service" "cloud_resource_manager" {
+  service = "cloudresourcemanager.googleapis.com"
+}
+
 resource "google_project_service" "compute" {
   service = "compute.googleapis.com"
   provisioner "local-exec" {
@@ -5,6 +9,7 @@ resource "google_project_service" "compute" {
       gcloud compute firewall-rules list --format 'value(name)' --project=${var.project_id} | xargs gcloud compute firewall-rules delete -q
     EOT
   }
+  depends_on = [google_project_service.cloud_resource_manager]
 }
 
 resource "google_compute_network" "main" {
@@ -58,6 +63,8 @@ resource "google_compute_firewall" "allow_internal" {
   allow {
     protocol = "udp"
   }
+
+  depends_on = [google_project_service.compute]
 }
 
 resource "google_compute_firewall" "allow_iap" {
@@ -71,6 +78,7 @@ resource "google_compute_firewall" "allow_iap" {
     protocol = "tcp"
     ports    = ["22"]
   }
+  depends_on = [google_project_service.compute]
 }
 
 resource "google_compute_disk" "shared" {
