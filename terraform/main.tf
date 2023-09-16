@@ -17,9 +17,8 @@ resource "google_project_service" "compute" {
 
 # Create a custom VPC without default subnets
 resource "google_compute_network" "main" {
-  name                            = "vpc"
-  auto_create_subnetworks         = false
-  delete_default_routes_on_create = true
+  name                    = "vpc"
+  auto_create_subnetworks = false
 
   # Ensure the Compute API is enabled before creating the VPC
   depends_on = [google_project_service.compute]
