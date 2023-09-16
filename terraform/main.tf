@@ -3,7 +3,6 @@ resource "google_project_service" "compute" {
   provisioner "local-exec" {
     command = <<-EOT
       gcloud compute firewall-rules list --format 'value(name)' --project=${var.project_id} | xargs gcloud compute firewall-rules delete -q
-      gcloud -q compute networks delete default --project=${var.project_id}
     EOT
   }
 }
@@ -16,6 +15,7 @@ resource "google_compute_network" "main" {
 }
 
 resource "google_compute_subnetwork" "main" {
+  region        = "us-east1"
   ip_cidr_range = "10.0.0.0/16"
   name          = "subnet"
   network       = google_compute_network.main.self_link
@@ -26,6 +26,53 @@ resource "google_compute_subnetwork" "main" {
   }
 }
 
+resource "google_compute_router" "router" {
+  name    = "cloud-router"
+  region  = "us-east1"
+  network = google_compute_network.main.name
+}
+
+resource "google_compute_router_nat" "nat" {
+  name                               = "cloud-nat"
+  region                             = "us-east1"
+  router                             = google_compute_router.router.name
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+}
+
+resource "google_compute_firewall" "allow_internal" {
+  name          = "allow-internal"
+  network       = "vpc"
+  direction     = "INGRESS"
+  priority      = 1000
+  source_ranges = ["10.0.0.0/16"]
+
+  allow {
+    protocol = "icmp"
+  }
+
+  allow {
+    protocol = "tcp"
+  }
+
+  allow {
+    protocol = "udp"
+  }
+}
+
+resource "google_compute_firewall" "allow_iap" {
+  name          = "allow-iap"
+  network       = "vpc"
+  direction     = "INGRESS"
+  priority      = 1000
+  source_ranges = ["35.235.240.0/20"]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+}
+
 resource "google_compute_disk" "shared" {
   provider     = google-beta
   name         = "shared"
@@ -33,10 +80,11 @@ resource "google_compute_disk" "shared" {
   zone         = "us-east1-d"
   size         = 10
   multi_writer = true
+  depends_on   = [google_project_service.compute]
 }
 
 resource "google_compute_instance" "nas-1" {
-  machine_type = "e2-micro"
+  machine_type = "n2-standard-2"
   name         = "nas-1"
   zone         = "us-east1-d"
   boot_disk {
@@ -55,7 +103,7 @@ resource "google_compute_instance" "nas-1" {
 }
 
 resource "google_compute_instance" "nas-2" {
-  machine_type = "e2-micro"
+  machine_type = "n2-standard-2"
   name         = "nas-2"
   zone         = "us-east1-d"
   boot_disk {
@@ -71,5 +119,6 @@ resource "google_compute_instance" "nas-2" {
   network_interface {
     subnetwork = google_compute_subnetwork.main.self_link
   }
+  depends_on = [google_compute_instance.nas-1]
 }
 
